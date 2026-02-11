@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../services/mock_data_service.dart';
+import '../services/data_service.dart';
+import 'edit_expense_screen.dart';
 
 class ExpenseListScreen extends StatefulWidget {
   const ExpenseListScreen({super.key});
@@ -9,18 +10,16 @@ class ExpenseListScreen extends StatefulWidget {
 }
 
 class _ExpenseListScreenState extends State<ExpenseListScreen> {
-  final _service = MockDataService();
+  final _service = DataService();
 
   @override
   Widget build(BuildContext context) {
-    // 1. Get filtered expenses
-    final expenses = _service.getFilteredExpenses();
+    final expenses = _service.expenses;
 
     return Scaffold(
       appBar: AppBar(title: const Text('All Expenses')),
       body: Column(
         children: [
-          // Top Controls (Unchanged)
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Row(
@@ -41,7 +40,6 @@ class _ExpenseListScreenState extends State<ExpenseListScreen> {
             ),
           ),
 
-          // Expense List
           Expanded(
             child: expenses.isEmpty
                 ? const Center(child: Text("No expenses found."))
@@ -53,6 +51,9 @@ class _ExpenseListScreenState extends State<ExpenseListScreen> {
                 final expense = expenses[index];
                 final category = _service.getCategoryById(expense.categoryId);
 
+                Color catColor;
+                try { catColor = Color(int.parse(category.color.replaceFirst('#', '0xFF'))); } catch(_) { catColor = Colors.grey; }
+
                 return Card(
                   elevation: 0,
                   shape: RoundedRectangleBorder(
@@ -61,13 +62,11 @@ class _ExpenseListScreenState extends State<ExpenseListScreen> {
                   ),
                   child: ListTile(
                     leading: CircleAvatar(
-                      backgroundColor: category.color.withOpacity(0.1),
-                      child: Icon(category.icon, color: category.color),
+                      backgroundColor: catColor.withOpacity(0.1),
+                      child: Text(category.icon, style: const TextStyle(fontSize: 20)),
                     ),
                     title: Text(expense.description),
                     subtitle: Text(
-                      // Show Group Name if we are in "All Expenses" view (if you implemented that)
-                      // Or just date for now.
                       '${expense.date.month}/${expense.date.day} • ${category.name}',
                     ),
                     trailing: Column(
@@ -75,12 +74,18 @@ class _ExpenseListScreenState extends State<ExpenseListScreen> {
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Text('-\$${expense.amount}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                        // Show small badge if it's a group expense
                         if (expense.groupId != null)
                           Icon(Icons.group, size: 14, color: Colors.grey.shade400)
                       ],
                     ),
-                    onTap: () => Navigator.pushNamed(context, '/edit_expense'),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => EditExpenseScreen(expense: expense), // Pass the object
+                        ),
+                      );
+                    },
                   ),
                 );
               },

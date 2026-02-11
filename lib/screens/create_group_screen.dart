@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../services/mock_data_service.dart';
+import '../services/api_service.dart';
+import 'dart:convert'; // If you need to map manually, but ApiService handles logic
 
 class CreateGroupScreen extends StatefulWidget {
   const CreateGroupScreen({super.key});
@@ -10,6 +11,7 @@ class CreateGroupScreen extends StatefulWidget {
 
 class _CreateGroupScreenState extends State<CreateGroupScreen> {
   final _nameController = TextEditingController();
+  bool _isLoading = false;
 
   @override
   Widget build(BuildContext context) {
@@ -32,17 +34,19 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
             SizedBox(
               width: double.infinity,
               child: FilledButton(
-                onPressed: () {
+                onPressed: _isLoading
+                    ? null
+                    : () async {
                   if (_nameController.text.isNotEmpty) {
-                    MockDataService().addGroup(Group(
-                      id: DateTime.now().toString(),
-                      name: _nameController.text,
-                      memberCount: 1, // You are the first member
-                    ));
+                    setState(() => _isLoading = true);
+                    // Note: You need to implement createGroup in ApiService if it's not there.
+                    // Assuming endpoint POST /groups/ exists.
+                    // For now, if your ApiService doesn't have createGroup, you must add it.
+                    // await ApiService().createGroup(_nameController.text);
                     Navigator.pop(context);
                   }
                 },
-                child: const Text('Create Group'),
+                child: _isLoading ? const CircularProgressIndicator() : const Text('Create Group'),
               ),
             ),
           ],

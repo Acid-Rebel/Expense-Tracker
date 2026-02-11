@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../services/mock_data_service.dart';
-import '../widgets/add_edit_category_modal.dart';
+import '../services/data_service.dart';
+// import '../widgets/add_edit_category_modal.dart'; // Ensure this widget exists if you want to use it
 
 class CategoryManagementScreen extends StatefulWidget {
   const CategoryManagementScreen({super.key});
@@ -10,15 +10,10 @@ class CategoryManagementScreen extends StatefulWidget {
 }
 
 class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
-  final _service = MockDataService();
+  final _service = DataService();
 
   void _showAddModal() async {
-    await showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (ctx) => const AddEditCategoryModal(),
-    );
-    setState(() {}); // Refresh list
+    // Implement Add Category using API
   }
 
   @override
@@ -36,6 +31,9 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
         separatorBuilder: (_, __) => const SizedBox(height: 8),
         itemBuilder: (context, index) {
           final cat = _service.categories[index];
+          Color catColor;
+          try { catColor = Color(int.parse(cat.color.replaceFirst('#', '0xFF'))); } catch(_) { catColor = Colors.grey; }
+
           return Card(
             elevation: 0,
             color: Colors.white,
@@ -45,17 +43,15 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
             ),
             child: ListTile(
               leading: CircleAvatar(
-                backgroundColor: cat.color.withOpacity(0.1),
-                child: Icon(cat.icon, color: cat.color),
+                backgroundColor: catColor.withOpacity(0.1),
+                child: Text(cat.icon, style: const TextStyle(fontSize: 20)),
               ),
               title: Text(cat.name, style: const TextStyle(fontWeight: FontWeight.bold)),
               trailing: cat.isCustom
                   ? IconButton(
                 icon: const Icon(Icons.delete_outline, color: Colors.red),
                 onPressed: () {
-                  setState(() {
-                    _service.deleteCategory(cat.id);
-                  });
+                  // Implement Delete API call
                 },
               )
                   : const Chip(label: Text('Default', style: TextStyle(fontSize: 10))),

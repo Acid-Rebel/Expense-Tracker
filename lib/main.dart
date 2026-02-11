@@ -38,7 +38,6 @@ class SmartExpenseApp extends StatelessWidget {
         '/signup': (context) => const SignupScreen(),
         '/home': (context) => const HomeScreen(),
         '/add_expense': (context) => const AddExpenseScreen(),
-        '/edit_expense': (context) => const EditExpenseScreen(),
       },
     );
   }

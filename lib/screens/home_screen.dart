@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
-import '../services/mock_data_service.dart'; // Import service
+import '../services/data_service.dart';
+import '../models/api_models.dart';
 import 'expense_list_screen.dart';
 import 'insights_screen.dart';
 import 'profile_screen.dart';
+import 'edit_expense_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -13,10 +15,23 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
+  final DataService _dataService = DataService();
 
-  // Need to rebuild body when group context changes
-  // We wrap the body in a ValueListenableBuilder inside the methods below?
-  // Easier: Wrap the Scaffold body or just the dashboard part.
+  @override
+  void initState() {
+    super.initState();
+    _dataService.addListener(_onDataChanged);
+  }
+
+  @override
+  void dispose() {
+    _dataService.removeListener(_onDataChanged);
+    super.dispose();
+  }
+
+  void _onDataChanged() {
+    setState(() {}); // Rebuild UI when data updates
+  }
 
   final List<Widget> _pages = [
     const HomeDashboard(),
@@ -26,25 +41,17 @@ class _HomeScreenState extends State<HomeScreen> {
   ];
 
   void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
+    setState(() => _selectedIndex = index);
   }
 
   @override
   Widget build(BuildContext context) {
-    // Only show FAB on Dashboard (0) or List (1)
     final bool showFab = _selectedIndex == 0 || _selectedIndex == 1;
 
     return Scaffold(
-      body: ValueListenableBuilder<String?>(
-        valueListenable: MockDataService().currentGroupContext,
-        builder: (context, currentGroupId, child) {
-          // This ensures the entire shell rebuilds if the group context changes
-          // effectively refreshing the child pages that depend on the data service.
-          return _pages[_selectedIndex];
-        },
-      ),
+      body: _dataService.isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _pages[_selectedIndex],
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
         onDestinationSelected: _onItemTapped,
@@ -57,7 +64,11 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       floatingActionButton: showFab
           ? FloatingActionButton(
-        onPressed: () => Navigator.pushNamed(context, '/add_expense'),
+        onPressed: () async {
+          await Navigator.pushNamed(context, '/add_expense');
+          // Refresh data when returning from Add Screen to show new entries immediately
+          _dataService.loadInitialData();
+        },
         child: const Icon(Icons.add),
       )
           : null,
@@ -65,18 +76,15 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-// ---------------------------------------------------------
-// Internal Widget: Dashboard Content (Tab 0)
-// ---------------------------------------------------------
 class HomeDashboard extends StatelessWidget {
   const HomeDashboard({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final service = MockDataService();
-    // Get filtered expenses based on current context
-    final expenses = service.getFilteredExpenses();
-    final totalSpent = expenses.fold(0.0, (sum, item) => sum + item.amount);
+    final service = DataService();
+    // Use Real Data
+    final totalSpent = service.monthlyTotal;
+    final expenses = service.expenses;
 
     return Scaffold(
       appBar: AppBar(
@@ -84,18 +92,19 @@ class HomeDashboard extends StatelessWidget {
           padding: EdgeInsets.all(8.0),
           child: CircleAvatar(
             backgroundColor: Colors.indigo,
-            child: Text('JD', style: TextStyle(color: Colors.white)),
+            child: Icon(Icons.person, color: Colors.white),
           ),
         ),
-        // --- UPDATED TITLE: Group Switcher ---
+        // Group Switcher Connected to Real Groups
         title: DropdownButtonHideUnderline(
           child: DropdownButton<String?>(
             value: service.currentGroupContext.value,
             icon: const Icon(Icons.keyboard_arrow_down, color: Colors.black),
+            hint: const Text('Personal', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.black)),
             items: [
               const DropdownMenuItem(
                 value: null,
-                child: Text('Personal Expenses', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                child: Text('Personal', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
               ),
               ...service.groups.map((g) => DropdownMenuItem(
                 value: g.id,
@@ -103,15 +112,15 @@ class HomeDashboard extends StatelessWidget {
               ))
             ],
             onChanged: (val) {
-              service.currentGroupContext.value = val;
+              service.setGroupContext(val);
             },
           ),
         ),
         centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.notifications_none),
-            onPressed: () {},
+            icon: const Icon(Icons.refresh),
+            onPressed: () => service.loadInitialData(),
           )
         ],
       ),
@@ -152,7 +161,7 @@ class HomeDashboard extends StatelessWidget {
             ),
             const SizedBox(height: 24),
 
-            // Recent Expenses List (Mocked subset)
+            // Recent Expenses List
             const Text('Recent Expenses', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             if (expenses.isEmpty)
@@ -165,12 +174,29 @@ class HomeDashboard extends StatelessWidget {
                 itemBuilder: (context, index) {
                   final e = expenses[index];
                   final cat = service.getCategoryById(e.categoryId);
+
+                  // Helper to parse hex color
+                  Color catColor;
+                  try {
+                    catColor = Color(int.parse(cat.color.replaceFirst('#', '0xFF')));
+                  } catch(_) { catColor = Colors.grey; }
+
                   return Card(
                     margin: const EdgeInsets.only(bottom: 12),
                     child: ListTile(
+                      onTap: () async {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => EditExpenseScreen(expense: e), // 'e' is the expense variable from the loop
+                          ),
+                        );
+                        // Refresh data
+                        DataService().loadInitialData();
+                      },
                       leading: CircleAvatar(
-                        backgroundColor: cat.color.withOpacity(0.1),
-                        child: Icon(cat.icon, color: cat.color),
+                        backgroundColor: catColor.withOpacity(0.1),
+                        child: Text(cat.icon, style: const TextStyle(fontSize: 20)), // Display Emoji
                       ),
                       title: Text(e.description),
                       subtitle: Text('${e.date.month}/${e.date.day} • ${cat.name}'),

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../services/mock_data_service.dart';
+import '../services/data_service.dart';
 import 'create_group_screen.dart';
 
 class GroupManagementScreen extends StatefulWidget {
@@ -12,7 +12,7 @@ class GroupManagementScreen extends StatefulWidget {
 class _GroupManagementScreenState extends State<GroupManagementScreen> {
   @override
   Widget build(BuildContext context) {
-    final groups = MockDataService().groups;
+    final groups = DataService().groups;
 
     return Scaffold(
       appBar: AppBar(title: const Text('My Groups')),
@@ -34,7 +34,7 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
       )
           : ListView.builder(
         padding: const EdgeInsets.all(16),
-        itemCount: groups.length + 1, // +1 for the "Create New" card
+        itemCount: groups.length + 1,
         itemBuilder: (context, index) {
           if (index == groups.length) {
             return OutlinedButton.icon(
@@ -53,7 +53,6 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
             child: ListTile(
               leading: const CircleAvatar(child: Icon(Icons.groups)),
               title: Text(group.name),
-              subtitle: Text('${group.memberCount} members'),
               trailing: const Icon(Icons.chevron_right),
             ),
           );
@@ -67,6 +66,8 @@ class _GroupManagementScreenState extends State<GroupManagementScreen> {
       context,
       MaterialPageRoute(builder: (context) => const CreateGroupScreen()),
     );
-    setState(() {}); // Refresh list
+    // Refresh groups list
+    await DataService().fetchGroups();
+    setState(() {});
   }
 }
